@@ -57,7 +57,7 @@ end
 function show_fcautoencoder(input, lat_size,out_size,encoder,decoder;indexes=[3,4,5],nrow=3,ncol=3, figname="fcautoencoder_figure", fig_size=(8,8))
 
     a1 = 1.0;
-    a2 = 0.01;
+    a2 = 1;
     #the latent space
     lat_space = encoder(input);
     lat_reshape = reshape(lat_space, lat_size...,:)
@@ -140,7 +140,7 @@ opt = Adam(0.001, (0.9, 0.8))
 
 #epochs
 #trainmode!(m,true)
-epochs = 150;
+epochs = 100;
 
 #creating empty arrays for losses and mean losses
 trainlosses=[];
@@ -205,30 +205,27 @@ close("all")
 #making the mean training loss
 mean_trainlosses = [];
 for i = 1:epochs
-        first = 1 + (i-1)*8
-        last = 8 + (i-1)*8
+        first = 1 + (i-1)*5
+        last = 5 + (i-1)*5
         push!(mean_trainlosses,mean(trainlosses[first:last]) )
 end
 
 #plotting mean training loss
 PyPlot.plot(mean_trainlosses)
-gcf()
-
 
 #making the mean testing loss
 mean_testlosses = [];
 for i = 1:epochs
-        first1 = 1 + (i-1)*1 #3 stands for the batch size
-        last1 = 1 + (i-1)*1
+        first1 = 1 + (i-1)*2 #3 stands for the batch size
+        last1 = 2 + (i-1)*2
         push!(mean_testlosses,mean(testlosses[first1:last1]) )
 end
 
-close("all")
 #plotting the mean testing loss
 PyPlot.plot(mean_testlosses)
 gcf()
 
-
+close("all")
 
 
 show_fcautoencoder(SeisTrain_full,
@@ -253,7 +250,7 @@ xout = FCAE(xin);
 
 # plot examples at i = 10,50,90
 nx = 50;
-section = 100;
+section = 50;
 xin10 = reshape(xin[:,section],(nt,nx)); 
 xout10 = reshape(xout[:,section],(nt,nx));
 clean10 = reshape(newdce1[:,:,section], (nt,nx));
@@ -261,14 +258,6 @@ clean10 = reshape(newdce1[:,:,section], (nt,nx));
 close("all")
 SeisPlotTX([clean10 xin10 xout10],cmap="gray",xlabel=labelx,ylabel=labely,title = "clean              noisy          denoised")
 gcf()
-
-
-#xin50 = reshape(xin[:,50],nt,nx); xout50 = reshape(xout[:,50],nt,nx);
-
-#xin90 = reshape(xin[:,90],nt,nx); xout90 = reshape(xout[:,90],nt,nx);
-
-#new_xin = reshape(xin20,nt,nx);
-#new_xout = reshape(xout20,nt,nx);
 
 #getting the amount of noise
 approx_noise = xin10 - xout10;
@@ -287,3 +276,52 @@ gcf()
 #pyplot(epochs,l, c=:black, lw=2);
 #yaxis!("Loss", :log);
 #xaxis!("Training epoch")
+
+
+#finding max value for train loss
+maxtrl = max(trainlosses...)
+
+maxtel = max(testlosses...)
+
+normtrainloss = trainlosses./maxtrl
+
+normtestloss = testlosses./maxtel
+
+close("all")
+PyPlot.plot(normtrainloss)
+PyPlot.plot(normtestloss)
+gcf()
+
+
+
+
+
+
+close("all")
+
+
+#making the mean training loss
+mean_normtrainloss = [];
+for i = 1:epochs
+        first = 1 + (i-1)*5
+        last = 5 + (i-1)*5
+        push!(mean_normtrainloss,mean(normtrainloss[first:last]) )
+end
+
+#plotting mean training loss
+PyPlot.plot(mean_normtrainloss)
+#gcf()
+
+
+#making the mean testing loss
+mean_normtestloss = [];
+for i = 1:epochs
+        first1 = 1 + (i-1)*2
+        last1 = 2 + (i-1)*2
+        push!(mean_normtestloss,mean(normtestloss[first1:last1]) )
+end
+
+#close("all")
+#plotting the mean testing loss
+PyPlot.plot(mean_normtestloss)
+gcf()

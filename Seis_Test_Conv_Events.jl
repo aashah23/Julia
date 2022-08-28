@@ -1,5 +1,5 @@
 #defining the new number of examples for testing dataset
-test_cnexamples = 30;
+test_cnexamples = 40;
 
 #defining the testing dataset
 #making array for labels
