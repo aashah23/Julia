@@ -44,7 +44,7 @@ end
 function show_convautoencoder(input, lat_size,out_size,ConvEncoder,ConvDecoder;indexes=[3,4,5],nrow=3,ncol=3, figname="convautoencoder_figure", fig_size=(8,8))
 
     a1 = 1.0;
-    a2 = 0.001;
+    a2 = 0.9;
     #the convolutional latent space
     lat_cspace = ConvEncoder(input);
     lat_creshape = reshape(lat_cspace, lat_size...,:)
@@ -90,21 +90,22 @@ ConvEncoder = Chain(
     x-> reshape(x,35*4*4,:), #(2240, 150)
 
     #defining the fully-connected encoder
-    Dense(560,5,relu),
+    Dense(560,200,leakyrelu),
+    Dense(200,5, leakyrelu)
 #output size is now (7, 150), which is the input size to decoder
 )
 
 
 ConvDecoder = Chain(
 #defining the fully-connected decoder
-
-    Dense(5,560, leakyrelu), #/2
+    Dense(5,200, relu),
+    Dense(200,560, relu), #/2
 
     #defining the convolutional decoder
     x-> reshape(x,35,4,4,:), #(35, 4, 16, 150)
     ConvTranspose((4,4),4=>4, stride = 2, leakyrelu), #(72, 10, 16, 150)
     ConvTranspose((6,5),4=>2, stride = 2, leakyrelu), #(148, 23, 8, 150)
-    ConvTranspose((6,6), 2=>1, stride = 2,identity), #(300, 50, 1, 150)
+    ConvTranspose((6,6), 2=>1, stride = 2,leakyrelu), #(300, 50, 1, 150)
 )
 
 #combining the encoder and decoder
@@ -128,10 +129,10 @@ gcf()
 cost(x,y) = Flux.mse(CAE(x),y); #x is the input, CAE(x) is the output, y is labels
 
 #setting the optimizier
-opt = Adam(0.001, (0.9, 0.8));
+opt = Adam(0.001)#, (0.9, 0.8));
 
 #epochs
-epochs = 50;
+epochs = 40;
 
 #creating empty arrays for losses and mean losses
 trainconvlosses=[];
@@ -184,14 +185,13 @@ close("all")
 #plotting the training loss
 PyPlot.plot(trainconvlosses)#, xlabel = "Number of epochs", ylabel = "Error Loss");
 PyPlot.plot(testconvlosses)#,  xlabel = "Number of epochs", ylabel = "Error Loss");
+PyPlot.xlabel("Number of batches")
+PyPlot.xlabel("Number of batches")
+PyPlot.ylabel("Loss")
 gcf()
 
 
-#plotting the testing loss
-
-
 close("all")
-
 
 #making the mean training loss
 mean_trainconvlosses = [];
@@ -204,8 +204,6 @@ end
 #plotting mean training loss
 PyPlot.plot(mean_trainconvlosses)
 
-
-
 #making the mean testing loss
 mean_testconvlosses = [];
 for i = 1:epochs
@@ -214,11 +212,11 @@ for i = 1:epochs
         push!(mean_testconvlosses,mean(testconvlosses[first1:last1]) )
 end
 
-#close("all")
 #plotting the mean testing loss
-#PyPlot.plot(mean_trainconvlosses)
-
 PyPlot.plot(mean_testconvlosses)
+PyPlot.xlabel("Number of epochs")
+PyPlot.ylabel("Mean Loss")
+
 gcf()
 
 
@@ -234,20 +232,14 @@ tr_xoutc = CAE(tr_xinc);
 
 # plot examples at i = 10,50,90
 nx = 50;
-sectionc = 40;
+sectionc = 50;
 
 new_cleanc = newdce1c[:,:,1,sectionc]
-
-
 newtr_xinc = tr_xinc[:,:,1,sectionc]
-
-
 newtr_xoutc = tr_xoutc[:,:,1,sectionc]
 
-
-
-
 close("all")
+
 SeisPlotTX([new_cleanc newtr_xinc newtr_xoutc],cmap="gray",xlabel=labelx,ylabel=labely,title = "clean              noisy          denoised")
 gcf()
 
@@ -263,7 +255,6 @@ gcf()
 approx_noise = newtr_xinc - newtr_xoutc;
 close("all")
 
-
 approx_nothing = new_cleanc - newtr_xoutc;
 
 SeisPlotTX([clean10 xin10 xout10 approx_noise approx_nothing],cmap="gray")
@@ -274,18 +265,21 @@ SeisPlotTX([clean10 xin10 xout10 approx_noise approx_nothing],cmap="gray")
 gcf()
 
 
-#finding max value for train loss
-maxtrl = max(trainconvlosses...)
+#finding max value for train and test loss
+maxtrcl = max(trainconvlosses...)
+maxtecl = max(testconvlosses...)
 
-maxtel = max(testconvlosses...)
-
-normtrainloss = trainconvlosses./maxtrl
-
-normtestloss = testconvlosses./maxtel
+#normalizing data via max(loss) values 
+maxnormtraincloss = trainconvlosses./maxtrcl
+maxnormtestcloss = testconvlosses./maxtecl
 
 close("all")
-PyPlot.plot(normtrainloss)
-PyPlot.plot(normtestloss)
+
+#plotting normalized (by max) loss values
+PyPlot.xlabel("Number of epochs")
+PyPlot.ylabel("Normalized Loss")
+PyPlot.plot(maxnormtraincloss)
+PyPlot.plot(maxnormtestcloss)
 gcf()
 
 
@@ -297,27 +291,29 @@ close("all")
 
 
 #making the mean training loss
-mean_normtrainloss = [];
+mean_normtraincloss = [];
 for i = 1:epochs
         first = 1 + (i-1)*5
         last = 5 + (i-1)*5
-        push!(mean_normtrainloss,mean(normtrainloss[first:last]) )
+        push!(mean_normtraincloss,mean(normtraincloss[first:last]) )
 end
 
 #plotting mean training loss
-PyPlot.plot(mean_normtrainloss)
+PyPlot.plot(mean_normtraincloss)
 #gcf()
 
 
 #making the mean testing loss
-mean_normtestloss = [];
+mean_normtestcloss = [];
 for i = 1:epochs
         first1 = 1 + (i-1)*2
         last1 = 2 + (i-1)*2
-        push!(mean_normtestloss,mean(normtestloss[first1:last1]) )
+        push!(mean_normtestcloss,mean(normtestcloss[first1:last1]) )
 end
 
 #close("all")
 #plotting the mean testing loss
-PyPlot.plot(mean_normtestloss)
+PyPlot.plot(mean_normtestcloss)
+PyPlot.xlabel("Number of epochs")
+PyPlot.ylabel("Mean Normalized Loss")
 gcf()
