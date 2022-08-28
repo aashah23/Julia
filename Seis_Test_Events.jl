@@ -1,5 +1,5 @@
 #defining the new number of examples for testing dataset
-test_nexamples = 20;
+test_nexamples = 30;
 
 #defining the testing dataset
 #making array for labels

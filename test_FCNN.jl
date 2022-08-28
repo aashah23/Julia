@@ -1,9 +1,9 @@
 # create container for reading the data
-container3= zeros(300,nx1,test_nexamples); 
-newdne2 = read!("test_noisy.bin",container3); 
+cont_full_test_noisy = zeros(nt,nx1,test_nexamples); 
+newdne2 = read!("test_noisy.bin",cont_full_test_noisy); 
 
-container4= zeros(300,nx1,test_nexamples); 
-newdce2 = read!("test_labels.bin",container4); 
+cont_full_test_labels= zeros(nt,nx1,test_nexamples); 
+newdce2 = read!("test_labels.bin",cont_full_test_labels); 
 
 datalabel2 = newdce2;
 
@@ -14,10 +14,10 @@ function get_test_full_seismic_batches(;nw=50, nh=300, nc=1, batch_size=20, shuf
     numb2=test_nexamples;
     slice2 = newdne2[:,:,1:numb2];
     #reshaping the data 
+    
     N5 = size(slice2)[3];
 
     SeisTest_full = zeros(Float64,nw*nh*nc,N5);
-    
     
     for i in 1:N5
         SeisTest_full[:,i] = reshape(slice2[:,:,i],nw*nh*nc);
@@ -45,7 +45,7 @@ SeisTest_full, test_loader = get_test_full_seismic_batches();
 # define the test input
 tr_xin = copy(SeisTest_full);
 # pass input to the autoencoder (AE) 
-tr_xout = AE(tr_xin);
+tr_xout = FCAE(tr_xin);
 # safe-guard the size
 @assert size(tr_xin) == size(tr_xout)
 

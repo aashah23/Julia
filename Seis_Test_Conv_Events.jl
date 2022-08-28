@@ -1,5 +1,5 @@
 #defining the new number of examples for testing dataset
-test_cnexamples = 50;
+test_cnexamples = 30;
 
 #defining the testing dataset
 #making array for labels
@@ -133,5 +133,3 @@ B4c = reshape(data,nt,nx1,nc,test_cnexamples);
 
 #difference should be 0 for this to be true
 diffc = sum(abs.(test_clabels[:]-B4c[:]))
-
-

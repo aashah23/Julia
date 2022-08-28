@@ -44,7 +44,7 @@ end
 function show_convautoencoder(input, lat_size,out_size,ConvEncoder,ConvDecoder;indexes=[3,4,5],nrow=3,ncol=3, figname="convautoencoder_figure", fig_size=(8,8))
 
     a1 = 1.0;
-    a2 = 0.0001;
+    a2 = 0.001;
     #the convolutional latent space
     lat_cspace = ConvEncoder(input);
     lat_creshape = reshape(lat_cspace, lat_size...,:)
@@ -84,28 +84,27 @@ SeisTrain_conv, train_convloader = get_train_conv_seismic_batches();
 #MAKING THE CNN - input is (300x50x1x150)
 #defining the convolutional encoder
 ConvEncoder = Chain(
-    Conv((6,6), 1=>4, stride = 2,leakyrelu), #(148, 23, 8, 150)
-    Conv((6,5), 4=>8, stride = 2, leakyrelu), #(72, 10, 16, 150)
-    Conv((4,4), 8=>8, stride = 2, leakyrelu), #(35, 4, 16, 150)
-    x-> reshape(x,35*4*8,:), #(2240, 150)
+    Conv((6,6), 1=>2, stride = 2,leakyrelu), #(148, 23, 8, 150)
+    Conv((6,5), 2=>4, stride = 2, leakyrelu), #(72, 10, 16, 150)
+    Conv((4,4), 4=>4, stride = 2, leakyrelu), #(35, 4, 16, 150)
+    x-> reshape(x,35*4*4,:), #(2240, 150)
 
     #defining the fully-connected encoder
-    Dense(1120,5, relu), #/2
-
+    Dense(560,5,relu),
 #output size is now (7, 150), which is the input size to decoder
 )
 
 
 ConvDecoder = Chain(
 #defining the fully-connected decoder
-    Dense(5,1120, leakyrelu),
 
+    Dense(5,560, leakyrelu), #/2
 
     #defining the convolutional decoder
-    x-> reshape(x,35,4,16,:), #(35, 4, 16, 150)
-    ConvTranspose((4,4),8=>8, stride = 2, relu), #(72, 10, 16, 150)
-    ConvTranspose((6,5),8=>4, stride = 2, relu), #(148, 23, 8, 150)
-    ConvTranspose((6,6), 4=>1, stride = 2,identity), #(300, 50, 1, 150)
+    x-> reshape(x,35,4,4,:), #(35, 4, 16, 150)
+    ConvTranspose((4,4),4=>4, stride = 2, leakyrelu), #(72, 10, 16, 150)
+    ConvTranspose((6,5),4=>2, stride = 2, leakyrelu), #(148, 23, 8, 150)
+    ConvTranspose((6,6), 2=>1, stride = 2,identity), #(300, 50, 1, 150)
 )
 
 #combining the encoder and decoder
@@ -132,7 +131,7 @@ cost(x,y) = Flux.mse(CAE(x),y); #x is the input, CAE(x) is the output, y is labe
 opt = Adam(0.001, (0.9, 0.8));
 
 #epochs
-epochs = 40;
+epochs = 50;
 
 #creating empty arrays for losses and mean losses
 trainconvlosses=[];
@@ -178,6 +177,7 @@ for epoch in 1:epochs
     
 end 
 
+
 close("all")
 
 
@@ -203,7 +203,7 @@ end
 
 #plotting mean training loss
 PyPlot.plot(mean_trainconvlosses)
-gcf()
+
 
 
 #making the mean testing loss
@@ -214,24 +214,12 @@ for i = 1:epochs
         push!(mean_testconvlosses,mean(testconvlosses[first1:last1]) )
 end
 
-close("all")
+#close("all")
 #plotting the mean testing loss
+#PyPlot.plot(mean_trainconvlosses)
+
 PyPlot.plot(mean_testconvlosses)
 gcf()
-
-
-show_convautoencoder(SeisTrain_conv,
-                (4,4),(300,50),
-                encoder,decoder;
-                indexes=[10,11,12], figname="same_actv_before_training")
-            
-
-
-                
-                
-               
-                
-                gcf()
 
 
 
@@ -246,7 +234,7 @@ tr_xoutc = CAE(tr_xinc);
 
 # plot examples at i = 10,50,90
 nx = 50;
-sectionc = 50;
+sectionc = 40;
 
 new_cleanc = newdce1c[:,:,1,sectionc]
 
@@ -278,9 +266,58 @@ close("all")
 
 approx_nothing = new_cleanc - newtr_xoutc;
 
-SeisPlotTX([new_cleanc newtr_xinc newtr_xoutc approx_noise approx_nothing],cmap="gray")
+SeisPlotTX([clean10 xin10 xout10 approx_noise approx_nothing],cmap="gray")
 #PS: middle row is called Latent space = output of encoder. First row is input going into the encoder
 # third row is 
 
 
+gcf()
+
+
+#finding max value for train loss
+maxtrl = max(trainconvlosses...)
+
+maxtel = max(testconvlosses...)
+
+normtrainloss = trainconvlosses./maxtrl
+
+normtestloss = testconvlosses./maxtel
+
+close("all")
+PyPlot.plot(normtrainloss)
+PyPlot.plot(normtestloss)
+gcf()
+
+
+
+
+
+
+close("all")
+
+
+#making the mean training loss
+mean_normtrainloss = [];
+for i = 1:epochs
+        first = 1 + (i-1)*5
+        last = 5 + (i-1)*5
+        push!(mean_normtrainloss,mean(normtrainloss[first:last]) )
+end
+
+#plotting mean training loss
+PyPlot.plot(mean_normtrainloss)
+#gcf()
+
+
+#making the mean testing loss
+mean_normtestloss = [];
+for i = 1:epochs
+        first1 = 1 + (i-1)*2
+        last1 = 2 + (i-1)*2
+        push!(mean_normtestloss,mean(normtestloss[first1:last1]) )
+end
+
+#close("all")
+#plotting the mean testing loss
+PyPlot.plot(mean_normtestloss)
 gcf()

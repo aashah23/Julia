@@ -65,7 +65,7 @@ labely= "Time (s)";
 
 
 #setting the number of training examples
-train_cnexamples=200;
+train_cnexamples=100;
 
 #define number of channels
 nc=1;
