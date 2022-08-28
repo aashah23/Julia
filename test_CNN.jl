@@ -1,13 +1,22 @@
-function get_test_conv_seismic_batches(;nw=50, nh=300,nc=1,batch_size=20,shuffle=true, snr=0.5)
-    #reshaping the data 
-    test_nexamples
-    slice2 = newdne2[:,:,1:test_nexamples]
-    N5 = size(slice2)[3];
-    datalabel2 = newdce2;
-    SeisTest_conv_clean = newdce2;
+# create container (con) for reading the data
+cont_conv_test_noisy = zeros(nt,nx1,nc,test_cnexamples);
+newdne2c = read!("test_convnoisy.bin",cont_conv_test_noisy);
 
-    SeisTest_conv = zeros(Float32,nw,nh,nc,N5);
-    SeisTest_conv = copy(slice2)
+cont_conv_test_labels = zeros(nt,nx1,nc,test_cnexamples);
+newdce2c = read!("test_convlabels.bin",cont_conv_test_labels);
+
+
+
+function get_test_conv_seismic_batches(;nw=50, nh=300,nc=1,batch_size=20,shuffle=true, snr=0.5)
+
+    numb2c = test_cnexamples
+    slice2c = newdne2c[:,:,:,1:numb2c]
+    N5c = size(slice2c)[4];
+    datalabel2c = newdce2c;
+    SeisTest_conv_clean = newdce2c;
+
+    SeisTest_conv = zeros(Float32,nw,nh,nc,N5c);
+    SeisTest_conv = copy(slice2c)
 
 
     #adding noise
@@ -15,11 +24,11 @@ function get_test_conv_seismic_batches(;nw=50, nh=300,nc=1,batch_size=20,shuffle
     SeisTest_conv .+= test_convnoise
 
 
-    datalabel2 = newdce2;
-    newdatalabel2 = reshape(datalabel2,nh*nw,test_nexamples)
+    datalabel2c = newdce2c;
+    newdatalabel2c = reshape(datalabel2c,nh,nw,nc,test_cnexamples)
 
     #loading training and labels into data loader
-    test_convloader = DataLoader((data=SeisTest_conv,label=newdatalabel2),batchsize=batch_size, shuffle=shuffle)
+    test_convloader = DataLoader((data=SeisTest_conv,label=newdatalabel2c),batchsize=batch_size, shuffle=shuffle)
     
     #return the loaders
     return SeisTest_conv, test_convloader

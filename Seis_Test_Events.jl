@@ -1,5 +1,5 @@
 #defining the new number of examples for testing dataset
-test_nexamples = 30;
+test_nexamples = 20;
 
 #defining the testing dataset
 #making array for labels
@@ -132,4 +132,3 @@ B4 = reshape(data,nt,nx1,test_nexamples);
 
 #difference should be 0 for this to be true
 diff = sum(abs.(test_labels[:]-B4[:]))
-

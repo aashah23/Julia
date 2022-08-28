@@ -11,19 +11,13 @@ datalabel2 = newdce2;
 
 function get_test_full_seismic_batches(;nw=50, nh=300, nc=1, batch_size=20, shuffle=true,snr=0.05)
 
-    #loading MNIST trianing data
-    #noisy_in
-    #loading MNIST testing data
-    #test_x, test_y = MNIST.testdata(); 
-
-    #imgs = get_array("dne.bin")
     numb2=test_nexamples;
     slice2 = newdne2[:,:,1:numb2];
     #reshaping the data 
-    
     N5 = size(slice2)[3];
 
     SeisTest_full = zeros(Float64,nw*nh*nc,N5);
+    
     
     for i in 1:N5
         SeisTest_full[:,i] = reshape(slice2[:,:,i],nw*nh*nc);

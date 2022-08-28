@@ -57,7 +57,7 @@ end
 function show_fcautoencoder(input, lat_size,out_size,encoder,decoder;indexes=[3,4,5],nrow=3,ncol=3, figname="fcautoencoder_figure", fig_size=(8,8))
 
     a1 = 1.0;
-    a2 = 1.0;
+    a2 = 0.01;
     #the latent space
     lat_space = encoder(input);
     lat_reshape = reshape(lat_space, lat_size...,:)
@@ -139,8 +139,8 @@ cost(x,y) = Flux.mse(FCAE(x),y);
 opt = Adam(0.001, (0.9, 0.8))
 
 #epochs
-trainmode!(m,true)
-epochs = 100;
+#trainmode!(m,true)
+epochs = 150;
 
 #creating empty arrays for losses and mean losses
 trainlosses=[];
@@ -205,8 +205,8 @@ close("all")
 #making the mean training loss
 mean_trainlosses = [];
 for i = 1:epochs
-        first = 1 + (i-1)*5
-        last = 5 + (i-1)*5
+        first = 1 + (i-1)*8
+        last = 8 + (i-1)*8
         push!(mean_trainlosses,mean(trainlosses[first:last]) )
 end
 
@@ -218,8 +218,8 @@ gcf()
 #making the mean testing loss
 mean_testlosses = [];
 for i = 1:epochs
-        first1 = 1 + (i-1)*3
-        last1 = 3 + (i-1)*3
+        first1 = 1 + (i-1)*1 #3 stands for the batch size
+        last1 = 1 + (i-1)*1
         push!(mean_testlosses,mean(testlosses[first1:last1]) )
 end
 
@@ -231,8 +231,8 @@ gcf()
 
 
 
-show_autoencoder(SeisTrain_X,
-                (4,4),(301,50),
+show_fcautoencoder(SeisTrain_full,
+                (4,4),(300,50),
                 encoder,decoder;
                 indexes=[10,11,12], figname="same_actv_before_training")
             
@@ -245,7 +245,7 @@ show_autoencoder(SeisTrain_X,
                 gcf()
 
 # define the input
-xin = copy(SeisTrain_X);
+xin = copy(SeisTrain_full);
 # pass input to the autoencoder 
 xout = FCAE(xin);
 # safe-guard the size
@@ -253,7 +253,7 @@ xout = FCAE(xin);
 
 # plot examples at i = 10,50,90
 nx = 50;
-section = 70;
+section = 100;
 xin10 = reshape(xin[:,section],(nt,nx)); 
 xout10 = reshape(xout[:,section],(nt,nx));
 clean10 = reshape(newdce1[:,:,section], (nt,nx));

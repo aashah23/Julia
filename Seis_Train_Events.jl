@@ -65,7 +65,7 @@ labely= "Time (s)";
 
 
 #setting the number of training examples
-train_nexamples=100;
+train_nexamples=200;
 
 
 #creating empty arrays for data
