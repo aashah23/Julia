@@ -1,3 +1,6 @@
+# FOR CONVOLUTIONAL NEURAL NETWORK (CNN)
+# THIS FILE IS USED TO CREATE CLEAN AND NOISY TRAINING DATA
+
 #importing required packages
 using SeisMain
 using SeisPlot
@@ -70,17 +73,16 @@ train_cnexamples=100;
 #define number of channels
 nc=1;
 
-#creating empty arrays for data
+#creating empty arrays for noisy and clean (labels) data
 train_clabels=zeros(nt,nx1,nc,train_cnexamples); #for clean data
 train_cdne=zeros(nt,nx1,nc,train_cnexamples); #for noisy data
-
 
 #creating random noise for training data between (0.5,3)
 train_crnoise= rand(Uniform(0.5,3),train_cnexamples);
 
 
-#for loop
-for i in 1:train_cnexamples
+#for loop to set number of random events and putting in the other variables
+for i in 1:train_cnexamples #between 1 and number of examples
     train_cnevents= rand(1:train_cnexamples) #set number of random events
     r=rand(Uniform(0,1),train_cnevents); 
     tau = taumin .+ (taumax-taumin).*r;
@@ -98,15 +100,46 @@ for i in 1:train_cnexamples
 
     efc = rand(20:0.1:30);
 
-    # modelling clean data
+    # filling in clean data array with training events generated
     train_clabels[:,:,:,i] = SeisLinearEvents(ot=ot,dt=dt,nt=nt,ox1=ox1,dx1=dx1,nx1=nx1,tau=tau,p1=np,p2=p2,p3=p3,p4=p4,amp=namp,f0=efc);
-
-    # model noisy data (add noise to clean data dne = dce + noise)
-    # snr = some_equation_that_adi_will_figure_=
     
-    #adding noise to clean data and call it dne
+    #adding noise to clean training data and filling it into array dne (noisy)
     train_cdne[:,:,:,i] = SeisAddNoise(train_clabels[:,:,:,i],train_crnoise[i])
 end
+
+
+### THIS PART IS FOR NORMLAIZED DATA, HOWEVER I WAS NOT TOO SUCCESSFUL HENCE IS COMMENTED OUT ###
+#creating empty arrays for normalized data
+#norm_train_clabels=zeros(nt*nx1*nc*train_cnexamples); #for clean data
+#norm_train_cdne=zeros(nt*nx1*nc*train_cnexamples); #for noisy data
+#for loop for normalized data
+#for i in 1:train_cnexamples
+   # train_cnevents= rand(1:train_cnexamples) #set number of random events
+   # r=rand(Uniform(0,1),train_cnevents)
+   # tau = taumin .+ (taumax-taumin).*r
+   # pmax= (0.9*tmax.-tau)/xmax
+   # pmin = (-0.9*tau)/xmax
+   # p = pmin .+ (pmax.-pmin).*r
+   # sign = rand([1,-1],train_cnevents)
+   # np = sign .* p
+
+   # p1=p
+   # p2=p3=p4=zero(p1)
+   # amp=rand(Uniform(-1,1),train_cnevents)
+   # sign = rand([1,-1],train_cnevents)
+   # namp = sign .* amp
+
+   # efc = rand(20:0.1:30)
+
+    # modelling clean data
+   # tmp = SeisLinearEvents(ot=ot,dt=dt,nt=nt,ox1=ox1,dx1=dx1,nx1=nx1,tau=tau,p1=np,p2=p2,p3=p3,p4=p4,amp=namp,f0=efc);
+   # train_clabels[:,:,:,i] = tmp
+   # max_tmp = maximum(tmp)
+   # norm_tmp = tmp/max_tmp
+   # norm_train_clabels[:,:,:,i] = norm_tmp
+    #adding noise to clean data and call it dne
+    #train_cdne[:,:,:,i] = SeisAddNoise(reshape_norm_train_clabels[:,:,:,i],train_crnoise[i])
+#end
 
 
 #closing all previous figures
@@ -114,7 +147,7 @@ close("all")
 
 
 #setting name of plot
-figname = "SeisLinConvEvents_plot";
+figname9 = "SeisLinConvEvents_plot";
 
 #figure details 
 w=20; #width
@@ -126,59 +159,59 @@ labely = "Time (s)";
 thetitle = "with noise";
 
 #defining the figure
-figure(figname,figsize=(w,h));
+figure(figname9,figsize=(w,h));
 
 
-# MAKING PLOTS FOR CLEAN DATA
+# MAKING PLOTS FOR CLEAN TRAINING DATA
+
 #j,k,l,m are random sample numbers for plotting random samples 
 # (241) means for 2 rows and 4 columns, plot at index 1
 j=rand(1:train_cnexamples);
 subplot(241); 
-SeisPlotTX(train_clabels[:,:,nc,j], fignum=figname, xlabel = labelx, ylabel=labely);
+SeisPlotTX(train_clabels[:,:,nc,j], fignum=figname9, xlabel = labelx, ylabel=labely);
 
 k = rand(1:train_cnexamples);
 subplot(242);
-SeisPlotTX(train_clabels[:,:,nc,k], fignum=figname, xlabel = labelx, ylabel=labely);
+SeisPlotTX(train_clabels[:,:,nc,k], fignum=figname9, xlabel = labelx, ylabel=labely);
 
 l = rand(1:train_cnexamples);
 subplot(243);
-SeisPlotTX(train_clabels[:,:,nc,l], fignum=figname, xlabel = labelx, ylabel=labely); 
+SeisPlotTX(train_clabels[:,:,nc,l], fignum=figname9, xlabel = labelx, ylabel=labely); 
 
 m = rand(1:train_cnexamples);
 subplot(244);
-SeisPlotTX(train_clabels[:,:,nc,m],fignum=figname, xlabel = labelx, ylabel=labely);
+SeisPlotTX(train_clabels[:,:,nc,m],fignum=figname9, xlabel = labelx, ylabel=labely);
 
 
 
-# MAKING PLOTS FOR NOISY DATA|
+# MAKING PLOTS FOR NOISY TRAINING DATA
 subplot(245);
 cSNR1 = round(train_crnoise[j],digits=3); #rounding random noise for random sample to 3 dp
-SeisPlotTX(train_clabels[:,:,nc,j], fignum=figname, xlabel = labelx, ylabel=labely, title = "SNR="*"$(cSNR1)");
+SeisPlotTX(train_clabels[:,:,nc,j], fignum=figname9, xlabel = labelx, ylabel=labely, title = "SNR="*"$(cSNR1)");
 
 cSNR2 = round(train_crnoise[k],digits=3);
 subplot(246);
-SeisPlotTX(train_cdne[:,:,nc,k], fignum=figname, xlabel = labelx, ylabel=labely, title = "SNR="*"$(cSNR2)");
+SeisPlotTX(train_cdne[:,:,nc,k], fignum=figname9, xlabel = labelx, ylabel=labely, title = "SNR="*"$(cSNR2)");
 
 cSNR3 = round(train_crnoise[l],digits=3);
 subplot(247);
-SeisPlotTX(train_cdne[:,:,nc,l], fignum=figname, xlabel = labelx, ylabel=labely, title= "SNR = "*"$(cSNR3)");
+SeisPlotTX(train_cdne[:,:,nc,l], fignum=figname9, xlabel = labelx, ylabel=labely, title= "SNR = "*"$(cSNR3)");
 
 cSNR4 = round(train_crnoise[m],digits=3);
 subplot(248);
-SeisPlotTX(train_cdne[:,:,nc,m], fignum=figname, xlabel = labelx, ylabel=labely, title= "SNR = "*"$(cSNR4)");
+SeisPlotTX(train_cdne[:,:,nc,m], fignum=figname9, xlabel = labelx, ylabel=labely, title= "SNR = "*"$(cSNR4)");
 
+#get the current figure
+gcf() 
 
-#tight_layout(); #auto-adjust height and width
-gcf() #get the current figure
-
+#saving the figure we just plotted
+#savefig("SeisLinEvents_convtrainplot")
 
 #EXPORTING DATA
 #defining file for training data to be written on
 file_to_write = "train_convnoisy.bin"
-
 #creating the file for noisy data 
 fid = open(file_to_write,"w");
-
 #writing noisy data generated onto current file
 write(fid,train_cdne);
 #closing current file
@@ -188,13 +221,14 @@ close(fid)
 file_to_read = "train_convnoisy.bin"
 #opening file to read
 fid = open(file_to_read,"r");
-train_Nc = nt*nx1*nc*train_cnexamples;
 
+#creating training array N
+train_Nc = nt*nx1*nc*train_cnexamples;
 data1 = zeros(Float64,train_Nc);
 read!(fid,data1);
 close(fid)
 
-#chekcing if read and write done correctly
+#checking if read and write done correctly
 Bc = reshape(data1,nt,nx1,nc,train_cnexamples);
 
 #difference should be 0 for this to be true
@@ -202,6 +236,8 @@ diff = sum(abs.(train_cdne[:]-Bc[:]))
 
 close("all")
 
+#EXPORTING TRAINING LABEL DATA
+#defining file for training labels to be written on
 file_to_write_2 = "train_convlabels.bin";
 fid = open(file_to_write_2,"w");
 write(fid,train_clabels);

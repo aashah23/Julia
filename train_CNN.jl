@@ -1,3 +1,13 @@
+#adding the required packages
+using Flux, Flux.Optimise, Flux.Data
+using Flux: mse
+using Flux: @epochs
+using Flux: params
+using Plots, LinearAlgebra
+using Images.ImageCore
+using ImageTransformations
+using Plots
+
 # create container (con) for reading the data
 cont_conv_train_noisy = zeros(nt,nx1,nc,train_cnexamples);
 newdne1c = read!("train_convnoisy.bin",cont_conv_train_noisy);
@@ -19,9 +29,6 @@ function get_train_conv_seismic_batches(;nw=50, nh=300,nc=1,batch_size=20,shuffl
 
     SeisTrain_conv = copy(slicec)
 
-    SeisTrain_full_clean = newdce1c;
-
-
     #adding noise
     train_convnoise = Float32.(snr .* randn(size(SeisTrain_conv)));
     SeisTrain_conv .+= train_convnoise
@@ -41,10 +48,9 @@ end
 
 
 #defining convolutional autoencoder function
-function show_convautoencoder(input, lat_size,out_size,ConvEncoder,ConvDecoder;indexes=[3,4,5],nrow=3,ncol=3, figname="convautoencoder_figure", fig_size=(8,8))
-
+function show_convautoencoder(input, lat_size,out_size,ConvEncoder,ConvDecoder;indexes=[1,3,5],figname="fcautoencoder_figure",fig_size=(8,8),nrow=3,ncol=3)
     a1 = 1.0;
-    a2 = 0.9;
+    a2 = 1.0; #set to 0.0001 before training, and 1.0 after training
     #the convolutional latent space
     lat_cspace = ConvEncoder(input);
     lat_creshape = reshape(lat_cspace, lat_size...,:)
@@ -57,7 +63,7 @@ function show_convautoencoder(input, lat_size,out_size,ConvEncoder,ConvDecoder;i
     in_creshape = reshape(input, out_size..., :)
 
     #number of Plots
-    #nfigs = nrow*ncol
+    nfigs = nrow*ncol
 
     #start figure
     figure(figname, figsize=fig_size)
@@ -77,35 +83,41 @@ function show_convautoencoder(input, lat_size,out_size,ConvEncoder,ConvDecoder;i
 end
 
 
-SeisTrain_conv, train_convloader = get_train_conv_seismic_batches();
+#setting name of training plot(s)
+figname11 = "CNN_before_training";
+figname12 = "CNN_after_training";
 
+##TRAINING THE DATA ##
+SeisTrain_conv, train_convloader = get_train_conv_seismic_batches();
 
 
 #MAKING THE CNN - input is (300x50x1x150)
 #defining the convolutional encoder
 ConvEncoder = Chain(
-    Conv((6,6), 1=>2, stride = 2,leakyrelu), #(148, 23, 8, 150)
-    Conv((6,5), 2=>4, stride = 2, leakyrelu), #(72, 10, 16, 150)
-    Conv((4,4), 4=>4, stride = 2, leakyrelu), #(35, 4, 16, 150)
-    x-> reshape(x,35*4*4,:), #(2240, 150)
+    Conv((6,6), 1=>2, stride = 2,leakyrelu), #(148, 23, 2, 150)
+    Conv((6,5), 2=>4, stride = 2, leakyrelu), #(72, 10, 4, 150)
+    Conv((4,4), 4=>4, stride = 2, leakyrelu), #(35, 4, 4, 150)
+    Conv((3,2), 4=>4, stride = 2, leakyrelu), #(17, 2, 4, 150)
+    x-> reshape(x,17*2*4,:), #(136, 150)
 
     #defining the fully-connected encoder
-    Dense(560,200,leakyrelu),
-    Dense(200,5, leakyrelu)
-#output size is now (7, 150), which is the input size to decoder
+    Dense(136,7,leakyrelu),
+    #Dense(68,5,relu)
+#output size is now (5, 150), which is the input size to decoder
 )
 
 
 ConvDecoder = Chain(
-#defining the fully-connected decoder
-    Dense(5,200, relu),
-    Dense(200,560, relu), #/2
+    #defining the fully-connected decoder
+    #Dense(5,68,relu),
+    Dense(7,136,leakyrelu),
 
     #defining the convolutional decoder
-    x-> reshape(x,35,4,4,:), #(35, 4, 16, 150)
-    ConvTranspose((4,4),4=>4, stride = 2, leakyrelu), #(72, 10, 16, 150)
-    ConvTranspose((6,5),4=>2, stride = 2, leakyrelu), #(148, 23, 8, 150)
-    ConvTranspose((6,6), 2=>1, stride = 2,leakyrelu), #(300, 50, 1, 150)
+    x-> reshape(x,17,2,4,:), #(17, 2, 4, 150)
+    ConvTranspose((3,2), 4=>4, stride = 2, leakyrelu), #(17, 2, 4, 150)
+    ConvTranspose((4,4),4=>4, stride = 2, leakyrelu), #(35, 10, 4, 150)
+    ConvTranspose((6,5),4=>2, stride = 2, leakyrelu), #(72, 23, 2, 150)
+    ConvTranspose((6,6), 2=>1, stride = 2,identity), #(300, 50, 1, 150)
 )
 
 #combining the encoder and decoder
@@ -119,11 +131,12 @@ close("all)")
 show_convautoencoder(SeisTrain_conv,
                 (5,5),(300,50),
                 ConvEncoder,ConvDecoder,
-                indexes=[10,11,12])
+                indexes=[1,3,5])
 
 #tight_layout()
 gcf()
-
+#savefig("CNN_before_training")
+#savefig("CNN_after_training")
 
 #defining cost function
 cost(x,y) = Flux.mse(CAE(x),y); #x is the input, CAE(x) is the output, y is labels
@@ -132,7 +145,7 @@ cost(x,y) = Flux.mse(CAE(x),y); #x is the input, CAE(x) is the output, y is labe
 opt = Adam(0.001)#, (0.9, 0.8));
 
 #epochs
-epochs = 40;
+epochs = 60;
 
 #creating empty arrays for losses and mean losses
 trainconvlosses=[];
@@ -149,10 +162,6 @@ for epoch in 1:epochs
     #TRAINING
     train_convloss = 0;
     for (i,(newdne1c,newdce1c)) in enumerate(train_convloader)
-
-        #println(newdne1c |> size)
-        #println(newdce1c |> size)
-
         #get gradients
         grads = gradient(params(CAE)) do 
         tr_convl = cost(newdne1c,newdce1c)
@@ -182,14 +191,16 @@ end
 close("all")
 
 
-#plotting the training loss
-PyPlot.plot(trainconvlosses)#, xlabel = "Number of epochs", ylabel = "Error Loss");
-PyPlot.plot(testconvlosses)#,  xlabel = "Number of epochs", ylabel = "Error Loss");
-PyPlot.xlabel("Number of batches")
-PyPlot.xlabel("Number of batches")
-PyPlot.ylabel("Loss")
+#plotting the training and testing loss for CNN
+figname13 = "CNN_Loss_Vs_Batches";
+PyPlot.plot(trainconvlosses, label="Train Loss");
+PyPlot.plot(testconvlosses, label="Test Loss");
+PyPlot.xlabel("Number of batches");
+PyPlot.ylabel("Loss");
+PyPlot.title("CNN Losses vs Number of Batches");
+PyPlot.legend(loc=1);
 gcf()
-
+#savefig("FCNN_Loss_Vs_Batches")
 
 close("all")
 
@@ -201,8 +212,6 @@ for i = 1:epochs
         push!(mean_trainconvlosses,mean(trainconvlosses[first:last]) )
 end
 
-#plotting mean training loss
-PyPlot.plot(mean_trainconvlosses)
 
 #making the mean testing loss
 mean_testconvlosses = [];
@@ -212,108 +221,78 @@ for i = 1:epochs
         push!(mean_testconvlosses,mean(testconvlosses[first1:last1]) )
 end
 
-#plotting the mean testing loss
-PyPlot.plot(mean_testconvlosses)
-PyPlot.xlabel("Number of epochs")
-PyPlot.ylabel("Mean Loss")
-
+#plotting the mean training testing CNN losses
+figname14 = "Mean_CNN_Loss_Vs_Batches";
+PyPlot.plot(mean_trainconvlosses, label="Mean Train Loss");
+PyPlot.plot(mean_testconvlosses, label="Mean Test Loss");
+PyPlot.xlabel("Number of epochs");
+PyPlot.ylabel("Mean Loss");
+PyPlot.legend(loc=1);
+PyPlot.title("Mean CNN Losses vs Number of Epochs");
 gcf()
+#savefig("Mean_CNN_Loss_Vs_Batches")
+
+# NORMALIZING THE MEAN LOSSES
+#finding max value for train and test loss
+max_mean_train_conv_loss = maximum(mean_trainconvlosses);
+max_mean_test_conv_loss = max(mean_testconvlosses...);
+
+#normalizing data via max(loss) values 
+norm1 = mean_trainconvlosses./max_mean_train_conv_loss;
+norm2 = mean_testconvlosses./max_mean_test_conv_loss;
+
+close("all")
+
+#plotting normalized (by max) loss values
+figname15 = "NormMean_CNN_Loss_Vs_Batches";
+PyPlot.xlabel("Number of epochs");
+PyPlot.ylabel("Normalized Mean Losses");
+PyPlot.plot(norm1, label="Norm Mean Train Loss");
+PyPlot.plot(norm2, label="Norm Mean Test Loss");
+PyPlot.title("Normalized Mean CNN Losses vs Number of Epochs");
+PyPlot.legend(loc=3);
+gcf()
+#savefig("NormMean_CNN_Loss_Vs_Epochs")
+
+close("all")
 
 
-
+#NOW, TO TEST THE FCNN BY PLOTTING INDIVIDUAL RESULTS
 
 # define the input
-tr_xinc = copy(SeisTrain_conv);
+#tr_xinc = copy(SeisTrain_conv);
 # pass input to the autoencoder 
 
 tr_xoutc = CAE(tr_xinc);
 # safe-guard the size
 @assert size(tr_xinc) == size(tr_xoutc)
 
-# plot examples at i = 10,50,90
+# plot examples at particular section (example number) between 1:(no of examples)
 nx = 50;
-sectionc = 50;
+sectionc = 20;
 
-new_cleanc = newdce1c[:,:,1,sectionc]
-newtr_xinc = tr_xinc[:,:,1,sectionc]
-newtr_xoutc = tr_xoutc[:,:,1,sectionc]
+new_cleanc = newdce1c[:,:,1,sectionc];
+newtr_xinc = tr_xinc[:,:,1,sectionc];
+newtr_xoutc = tr_xoutc[:,:,1,sectionc];
 
 close("all")
 
+#plotting clean, noisy and denoised data side-by-side
+figname16 = "Train_Conv_Clean_Noisy_Denoised"
 SeisPlotTX([new_cleanc newtr_xinc newtr_xoutc],cmap="gray",xlabel=labelx,ylabel=labely,title = "clean              noisy          denoised")
 gcf()
-
-
-#xin50 = reshape(xin[:,50],nt,nx); xout50 = reshape(xout[:,50],nt,nx);
-
-#xin90 = reshape(xin[:,90],nt,nx); xout90 = reshape(xout[:,90],nt,nx);
-
-#new_xin = reshape(xin20,nt,nx);
-#new_xout = reshape(xout20,nt,nx);
+#savefig("Train_Conv_Clean_Noisy_Denoised")
 
 #getting the amount of noise
-approx_noise = newtr_xinc - newtr_xoutc;
-close("all")
-
-approx_nothing = new_cleanc - newtr_xoutc;
-
-SeisPlotTX([clean10 xin10 xout10 approx_noise approx_nothing],cmap="gray")
-#PS: middle row is called Latent space = output of encoder. First row is input going into the encoder
-# third row is 
-
-
-gcf()
-
-
-#finding max value for train and test loss
-maxtrcl = max(trainconvlosses...)
-maxtecl = max(testconvlosses...)
-
-#normalizing data via max(loss) values 
-maxnormtraincloss = trainconvlosses./maxtrcl
-maxnormtestcloss = testconvlosses./maxtecl
+approx_noise_conv = newtr_xinc - newtr_xoutc;
 
 close("all")
 
-#plotting normalized (by max) loss values
-PyPlot.xlabel("Number of epochs")
-PyPlot.ylabel("Normalized Loss")
-PyPlot.plot(maxnormtraincloss)
-PyPlot.plot(maxnormtestcloss)
+#next formula should give us ~nothing (tells us how close our model is to real event)
+approx_nothing_conv = new_cleanc - newtr_xoutc;
+
+#plotting them all 
+figname17 = "Train_Conv_5_in_1";
+SeisPlotTX([new_cleanc newtr_xinc newtr_xoutc approx_noise_conv approx_noise_conv],cmap="gray",title = "   clean   noisy  denoised ~noise ~nothing")
 gcf()
-
-
-
-
-
-
-close("all")
-
-
-#making the mean training loss
-mean_normtraincloss = [];
-for i = 1:epochs
-        first = 1 + (i-1)*5
-        last = 5 + (i-1)*5
-        push!(mean_normtraincloss,mean(normtraincloss[first:last]) )
-end
-
-#plotting mean training loss
-PyPlot.plot(mean_normtraincloss)
-#gcf()
-
-
-#making the mean testing loss
-mean_normtestcloss = [];
-for i = 1:epochs
-        first1 = 1 + (i-1)*2
-        last1 = 2 + (i-1)*2
-        push!(mean_normtestcloss,mean(normtestcloss[first1:last1]) )
-end
-
-#close("all")
-#plotting the mean testing loss
-PyPlot.plot(mean_normtestcloss)
-PyPlot.xlabel("Number of epochs")
-PyPlot.ylabel("Mean Normalized Loss")
-gcf()
+#savefig("Train_Conv_5_in_1")

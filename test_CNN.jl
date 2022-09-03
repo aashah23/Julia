@@ -1,3 +1,4 @@
+using Flux, Flux.Optimise, Flux.Data
 
 # create container (con) for reading the data
 cont_conv_test_noisy = zeros(nt,nx1,nc,test_cnexamples);
@@ -40,93 +41,41 @@ end
 SeisTest_conv, test_convloader = get_test_conv_seismic_batches();
 
 
-# define the test input
+
+
+#NOW, TO TEST THE CNN BY RUNNING TESTING DATA THROUGH IT
+
+# define the testing data input
 te_xinconv = copy(SeisTest_conv);
 # pass input to the autoencoder (AE) 
 te_xoutconv = CAE(te_xinconv);
 # safe-guard the size
 @assert size(te_xinconv) == size(te_xoutconv)
 
-# plot examples at i = 10,50,90
-nx = 50;
-te_xinconv20 = reshape(tr_xinconv[:,20],(nt,nx)); 
-tr_xoutconv20 = reshape(tr_xoutconv[:,20],(nt,nx));
-tr_clean20 = reshape(newdce2[:,:,20], (nt,nx));
-
-close("all")
-SeisPlotTX([tr_clean20 tr_xinconv20 tr_xoutconv20],cmap="gray")
-gcf()
-
-
-#xin50 = reshape(xin[:,50],nt,nx); xout50 = reshape(xout[:,50],nt,nx);
-
-#xin90 = reshape(xin[:,90],nt,nx); xout90 = reshape(xout[:,90],nt,nx);
-
-tr_new_xinconv = reshape(tr_xinconv20,nt,nx);
-tr_new_xoutconv = reshape(tr_xoutconv20,nt,nx);
-
-#getting the amount of noise
-tr_approx_noise_conv = tr_new_xinconv - tr_new_xoutconv;
-close("all")
-
-
-tr_approx_nothing_conv = tr_clean20 - tr_new_xoutconv;
-
-SeisPlotTX([tr_clean20 tr_xinconv20 tr_xoutconv20 tr_approx_noise_conv tr_approx_nothing_conv],cmap="gray")
-#PS: middle row is called Latent space = output of encoder. First row is input going into the encoder
-# third row is 
-
-
-gcf()
-
-
-
-#######################################################
-# define the input
-te_xinconv = copy(SeisTest_conv);
-# pass input to the autoencoder 
-
-te_xoutconv = CAE(te_xinconv);
-# safe-guard the size
-@assert size(te_xinconv) == size(tr_xoutc)
-
-# plot examples at i = 10,50,90
+# plot examples at particular section (example number) between 1:(no of test examples)
 nx = 50;
 sectionc = 40;
 
-new_cleanc = newdce1c[:,:,1,sectionc]
-
-
-newtr_xinc = tr_xinc[:,:,1,sectionc]
-
-
-newtr_xoutc = tr_xoutc[:,:,1,sectionc]
-
-
-
+new_cleanc = newdce1c[:,:,1,sectionc];
+newtr_xinc = tr_xinc[:,:,1,sectionc];
+newtr_xoutc = tr_xoutc[:,:,1,sectionc];
 
 close("all")
+
+#plotting clean, noisy and denoised data side-by-side
 SeisPlotTX([new_cleanc newtr_xinc newtr_xoutc],cmap="gray",xlabel=labelx,ylabel=labely,title = "clean              noisy          denoised")
 gcf()
 
 
-#xin50 = reshape(xin[:,50],nt,nx); xout50 = reshape(xout[:,50],nt,nx);
-
-#xin90 = reshape(xin[:,90],nt,nx); xout90 = reshape(xout[:,90],nt,nx);
-
-#new_xin = reshape(xin20,nt,nx);
-#new_xout = reshape(xout20,nt,nx);
-
 #getting the amount of noise
+#te_approx_noise = tr_new_xin - tr_new_xout;
 approx_noise = newtr_xinc - newtr_xoutc;
+
 close("all")
 
-
+#next formula should give us ~nothing (tells us how close our model is to real event)
 approx_nothing = new_cleanc - newtr_xoutc;
 
-SeisPlotTX([clean10 xin10 xout10 approx_noise approx_nothing],cmap="gray")
-#PS: middle row is called Latent space = output of encoder. First row is input going into the encoder
-# third row is 
-
-
+SeisPlotTX([new_cleanc newtr_xinc newtr_xoutc approx_noise approx_nothing],xlabel=labelx,ylabel=labely,cmap="gray",title = "   clean   noisy  denoised ~noise ~nothing")
 gcf()
+#savefig("Test_Conv_5_in_1")
